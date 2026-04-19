@@ -28,6 +28,15 @@ app.use('/', indexRouter);
 app.use('/auth', authRouter);
 app.use('/portfolio', portfolioRouter);
 app.use('/project', projectRouter);
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerFile));
+
+const swaggerOptions = {
+    customCssUrl: 'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui.min.css',
+    customJs: [
+        'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-bundle.js',
+        'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui-standalone-preset.js'
+    ]
+};
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerFile, swaggerOptions));
 
 module.exports = app;
