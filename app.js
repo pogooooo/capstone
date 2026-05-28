@@ -10,6 +10,7 @@ var indexRouter = require('./routes/index');
 var authRouter = require('./routes/auth');
 var portfolioRouter = require('./routes/portfolio');
 var projectRouter = require('./routes/project')
+var techRouter = require('./routes/tech');
 
 const swaggerUi = require('swagger-ui-express');
 const swaggerFile = require('./swagger-output.json');
@@ -28,6 +29,7 @@ app.use('/', indexRouter);
 app.use('/auth', authRouter);
 app.use('/portfolio', portfolioRouter);
 app.use('/project', projectRouter);
+app.use('/tech', techRouter);
 
 const swaggerOptions = {
     customCssUrl: 'https://cdnjs.cloudflare.com/ajax/libs/swagger-ui/4.15.5/swagger-ui.min.css',

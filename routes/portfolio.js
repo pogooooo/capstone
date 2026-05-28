@@ -1,18 +1,13 @@
 const express = require('express');
-const { getPortfolioByUserId, upsertPortfolio, deletePortfolio } = require('../database');
+const { getPortfolioByUserId, upsertPortfolio, deletePortfolio } = require('../oracle_database');
 const { verifyToken } = require('../middlewares/auth');
 const router = express.Router();
 
-// 포트폴리오는 모두 로그인한 본인만 다루므로 맨 위에 문지기를 세워둡니다.
 router.use(verifyToken);
 
 // 1. 포트폴리오 읽기 (GET)
 router.get('/', async (req, res) => {
-    /* #swagger.tags = ['Portfolio']
-       #swagger.summary = '내 포트폴리오 조회'
-       #swagger.security = [{ "bearerAuth": [] }] */
     try {
-        // verifyToken이 해독해 준 req.user.id를 사용해 조회합니다.
         const portfolio = await getPortfolioByUserId(req.user.id);
 
         if (!portfolio) {
@@ -26,17 +21,18 @@ router.get('/', async (req, res) => {
 });
 
 // 2. 포트폴리오 추가 및 수정 (PUT)
-// (없으면 만들고, 있으면 덮어쓰는 Upsert 방식입니다)
 router.put('/', async (req, res) => {
     /* #swagger.tags = ['Portfolio']
        #swagger.summary = '내 포트폴리오 추가 및 수정 (Upsert)'
-       #swagger.description = '신뢰도 점수를 제외한 포트폴리오 정보를 저장합니다.'
+       #swagger.description = '새로운 데이터베이스 구조(TBL_AWARD_INFO 분리)에 맞게 포트폴리오 정보를 저장합니다.'
        #swagger.security = [{ "bearerAuth": [] }] */
-    const { external_link, awards, tech_stack, image_1, image_2, image_3 } = req.body;
+
+    // 🔥 req.body에서 새로 추가된 introduction 필드도 수신
+    const { external_link, awards, tech_stack, image_1, image_2, image_3, award_detail, introduction } = req.body;
 
     try {
         await upsertPortfolio(req.user.id, {
-            external_link, awards, tech_stack, image_1, image_2, image_3
+            external_link, awards, tech_stack, image_1, image_2, image_3, award_detail, introduction
         });
 
         res.status(200).json({ message: "포트폴리오가 성공적으로 저장되었습니다." });
@@ -48,9 +44,6 @@ router.put('/', async (req, res) => {
 
 // 3. 포트폴리오 삭제 (DELETE)
 router.delete('/', async (req, res) => {
-    /* #swagger.tags = ['Portfolio']
-       #swagger.summary = '내 포트폴리오 삭제'
-       #swagger.security = [{ "bearerAuth": [] }] */
     try {
         const deletedRows = await deletePortfolio(req.user.id);
 
@@ -65,12 +58,8 @@ router.delete('/', async (req, res) => {
     }
 });
 
+// 4. 타 유저 포트폴리오 조회 (GET)
 router.get('/:userId', async (req, res) => {
-    /* #swagger.tags = ['Portfolio']
-       #swagger.summary = '다른 사람의 포트폴리오 조회'
-       #swagger.description = '특정 유저의 ID를 입력하여 해당 유저의 포트폴리오를 조회합니다.'
-       #swagger.security = [{ "bearerAuth": [] }] */
-
     const targetUserId = req.params.userId;
 
     try {

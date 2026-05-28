@@ -1,6 +1,6 @@
 var express = require('express');
 const { saveUser, updateRefreshToken, getUserByRefreshToken, removeRefreshToken,
-        getUserByEmail, updateUser, deleteUser } = require("../database");
+    getUserByEmail, updateUser, deleteUser } = require("../oracle_database");
 const axios = require('axios');
 const { verifyToken } = require('../middlewares/auth');
 const jwt = require('jsonwebtoken');
@@ -17,7 +17,6 @@ const validateUserInfo = (info) => {
 };
 
 router.get('/', verifyToken, async (req, res) => {
-    /* #swagger.tags = ['auth'] */
     try {
         const user = await getUserByEmail(req.user.email);
         if (!user) {
@@ -30,7 +29,6 @@ router.get('/', verifyToken, async (req, res) => {
 });
 
 router.patch('/', verifyToken, async (req, res) => {
-    /* #swagger.tags = ['auth'] */
     const { name, nickname } = req.body;
 
     if (!name && !nickname) {
@@ -47,16 +45,18 @@ router.patch('/', verifyToken, async (req, res) => {
             updated: { name, nickname }
         });
     } catch (error) {
+        if (error.message === "DUPLICATE_NICKNAME") {
+            return res.status(409).json({ message: "이미 사용 중인 닉네임입니다." });
+        }
         res.status(500).json({ message: "프로필 수정 중 서버 에러가 발생했습니다." });
     }
 });
 
 router.get('/login', function(req, res, next) {
-    /* #swagger.tags = ['auth'] */
     const provider = req.headers.provider || req.query.provider;
 
     if (!provider) {
-        return res.status(400).json({ message: "provider 값(google 또는 github)이 필요합니다." });
+        return res.status(400).json({ message: "provider 값이 필요합니다." });
     }
 
     let redirectUrl = "";
@@ -64,16 +64,12 @@ router.get('/login', function(req, res, next) {
     if (provider === 'google') {
         const clientId = process.env.GOOGLE_CLIENT_ID;
         const redirectUri = process.env.GOOGLE_REDIRECT_URI;
-
         redirectUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=email profile`;
-    }
-    else if (provider === 'github') {
+    } else if (provider === 'github') {
         const clientId = process.env.GITHUB_CLIENT_ID;
         const redirectUri = process.env.GITHUB_REDIRECT_URI;
-
         redirectUrl = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=user:email`;
-    }
-    else {
+    } else {
         return res.status(400).json({ message: "지원하지 않는 소셜 로그인입니다." });
     }
 
@@ -81,7 +77,6 @@ router.get('/login', function(req, res, next) {
 });
 
 router.get('/callback/:provider', async (req, res) => {
-    /* #swagger.tags = ['auth'] */
     const code = req.headers.code || req.query.code;
     const provider = req.params.provider;
 
@@ -113,10 +108,8 @@ router.get('/callback/:provider', async (req, res) => {
                 email: userData.email,
                 name: userData.name || "구글유저",
                 nickname: userData.name || "user"
-                // nickname: userData.given_name || `user_${Date.now()}`
             };
         }
-
         else if (provider === 'github') {
             const tokenResponse = await axios.post('https://github.com/login/oauth/access_token', {
                 client_id: process.env.GITHUB_CLIENT_ID,
@@ -152,9 +145,7 @@ router.get('/callback/:provider', async (req, res) => {
                 name: userData.name || userData.login,
                 nickname: userData.login
             };
-        }
-
-        else {
+        } else {
             return res.status(400).json({ message: "지원하지 않는 provider입니다." });
         }
 
@@ -164,36 +155,45 @@ router.get('/callback/:provider', async (req, res) => {
         }
 
         const userId = await saveUser(socialUserInfo);
+        const finalUser = await getUserByEmail(socialUserInfo.email);
+
+        const userNickname = finalUser ? finalUser.nickname : socialUserInfo.nickname;
+        const userName = finalUser ? finalUser.name : socialUserInfo.name;
+        const userEmail = finalUser ? finalUser.email : socialUserInfo.email;
+        const userCpu = finalUser ? finalUser.cpu : 50.0;
 
         const accessToken = jwt.sign(
-            { id: userId, email: socialUserInfo.email, nickname: socialUserInfo.nickname },
+            { id: userId, email: userEmail, nickname: userNickname },
             process.env.JWT_SECRET,
             { expiresIn: '1h' }
         );
 
         const refreshToken = jwt.sign(
-            { email: socialUserInfo.email },
+            { email: userEmail },
             process.env.JWT_REFRESH_SECRET,
             { expiresIn: '14d' }
         );
 
-        await updateRefreshToken(socialUserInfo.email, refreshToken);
+        await updateRefreshToken(userEmail, refreshToken);
 
         res.status(200).json({
             id: userId,
             access_token: accessToken,
             message: "로그인 및 회원가입 성공",
-            user: socialUserInfo
+            user: {
+                email: userEmail,
+                name: userName,
+                nickname: userNickname,
+                cpu: userCpu
+            }
         });
 
     } catch (error) {
-        console.error("Callback Error Details:", error.response ? error.response.data : error.message);
         res.status(500).json({ message: "소셜 로그인 처리 중 에러가 발생했습니다." });
     }
 });
 
 router.post('/refresh', async (req, res) => {
-    /* #swagger.tags = ['auth'] */
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
         return res.status(401).json({ message: "엑세스 토큰이 제공되지 않았습니다." });
@@ -203,7 +203,6 @@ router.post('/refresh', async (req, res) => {
 
     try {
         const decoded = jwt.verify(accessToken, process.env.JWT_SECRET, { ignoreExpiration: true });
-
         const user = await getUserByEmail(decoded.email);
 
         if (!user || !user.refresh_token) {
@@ -229,18 +228,15 @@ router.post('/refresh', async (req, res) => {
 });
 
 router.post('/logout', verifyToken, async (req, res) => {
-    /* #swagger.tags = ['auth'] */
     try {
         await removeRefreshToken(req.user.email);
         res.status(204).send();
     } catch (error) {
-        console.error("Logout Error:", error);
         res.status(500).json({ message: "로그아웃 처리 중 서버 에러가 발생했습니다." });
     }
 });
 
 router.delete('/withdraw', verifyToken, async (req, res) => {
-    /* #swagger.tags = ['auth'] */
     try {
         const deletedRows = await deleteUser(req.user.email);
 
@@ -250,7 +246,6 @@ router.delete('/withdraw', verifyToken, async (req, res) => {
 
         res.status(204).send();
     } catch (error) {
-        console.error("Withdraw Error:", error);
         res.status(500).json({ message: "회원탈퇴 처리 중 서버 에러가 발생했습니다." });
     }
 });
