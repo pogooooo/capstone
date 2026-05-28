@@ -1,0 +1,45 @@
+@import url('https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Orbit&family=Righteous&display=swap');
+
+:root {
+    --font-logo: 'Righteous', cursive, sans-serif;
+
+    --color-bg: #E8E8DF;
+    --color-bg-sub: #FFFFFF;
+
+    --color-caption: #A6A5A5;
+    --color-text: #5C5C5C;
+
+    --color-primary: #979265;
+    --color-gray: #F4F4F4;
+    --color-l-accent: #C8C180;
+    --color-d-accent: #63625E;
+    --color-g-accent: #D0D0D0;
+
+    --color-gr1: #B8D6FF;
+    --color-gr2: #FFCE53;
+    --color-gr3: #FF3E3E;
+
+    --bg : #E8E8DF;
+    --button : #EAE4B1;
+    --scrap : #FFD220;
+    --bg-sub : #CFCCB4;
+    --accent : #F1EECB;
+
+    /*--color-primary: #6366f1;       !* 메인 브랜드 색상 (예: 인디고) *!*/
+    /*--color-primary-hover: #4f46e5; !* 메인 버튼 호버 색상 *!*/
+
+    /*--color-bg-default: #ffffff;    !* 기본 배경색 *!*/
+    /*--color-bg-sub: #f3f4f6;        !* 서브 배경색 (카드, 옅은 회색 배경 등) *!*/
+    /*--color-text-main: #111827;     !* 짙은 기본 글자색 *!*/
+    /*--color-text-muted: #6b7280;    !* 옅은 설명글, 서브 텍스트 색상 *!*/
+
+    /*--color-error: #ef4444;         !* 경고, 에러 색상 *!*/
+    /*--color-success: #10b981;       !* 성공 색상 *!*/
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--color-bg-default);
+    color: var(--color-text-main);
+}
